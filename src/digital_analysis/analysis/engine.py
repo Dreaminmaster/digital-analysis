@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..contracts.evidence import EvidenceBundle, EvidenceItem, EvidenceKind, SourceProvenance
 from ..contracts.tasks import TaskSpec
 from ..planner.planner import SignalPlan
 from .confidence import ConfidenceEngine
@@ -16,6 +17,7 @@ class AnalysisOutput:
     plan: SignalPlan
     summary: str
     confidence: float
+    evidence: EvidenceBundle
     gaps: tuple[str, ...] = ()
     contradictions: tuple[str, ...] = ()
     scenarios: tuple[str, ...] = ()
@@ -25,10 +27,8 @@ class AnalysisOutput:
 class AnalysisEngine:
     """Baseline autonomous analysis engine.
 
-    Still intentionally lightweight, but no longer just a placeholder.
-    It now performs a minimal closed-loop interpretation step over planned
-    signals: horizon grouping, contradiction detection, scenario generation,
-    and confidence scoring.
+    Upgraded to emit structured evidence so future synthesis/reporting can rely
+    on contracts instead of only free-form summary text.
     """
 
     def __init__(self) -> None:
@@ -42,6 +42,19 @@ class AnalysisEngine:
         horizon_bucket = self._horizons.group(signal_notes)
         contradiction_findings = self._contradictions.detect(signal_notes + plan.notes)
         scenarios = self._scenarios.compose(task.question)
+
+        evidence_items = tuple(
+            EvidenceItem(
+                kind=EvidenceKind.OTHER,
+                label=req.category,
+                summary=req.reason,
+                horizon=task.horizon.value,
+                confidence_hint=min(0.3 + req.priority * 0.15, 0.9),
+                provenance=SourceProvenance(provider_id="planner", notes=("planned-signal",)),
+            )
+            for req in plan.required_signals
+        )
+        evidence = EvidenceBundle(items=evidence_items)
 
         gaps: list[str] = []
         if not horizon_bucket.short_term:
@@ -68,6 +81,7 @@ class AnalysisEngine:
             plan=plan,
             summary=summary,
             confidence=confidence,
+            evidence=evidence,
             gaps=tuple(gaps),
             contradictions=tuple(f.explanation for f in contradiction_findings),
             scenarios=scenarios,

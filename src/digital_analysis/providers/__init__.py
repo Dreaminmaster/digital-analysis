@@ -1,5 +1,8 @@
 from .base import ProviderMetadata, SignalProvider
+from .bis import BisCreditGap, BisCreditGapQuery, BisPolicyRate, BisProvider, BisRateQuery
 from .cme_fedwatch import CMEFedWatchProvider, FedMeetingProbability, FedRateProb
+from .coingecko import CoinGeckoMarket, CoinGeckoMarketQuery, CoinGeckoPrice, CoinGeckoPriceQuery, CoinGeckoProvider
+from .edgar import EdgarFiling, EdgarInsiderQuery, EdgarInsiderSummary, EdgarProvider
 from .fear_greed import FearGreedProvider, FearGreedSnapshot
 from .kalshi import KalshiMarket, KalshiMarketQuery, KalshiProvider
 from .polymarket import OutcomeQuote, PolymarketEvent, PolymarketEventQuery, PolymarketMarket, PolymarketProvider
@@ -9,9 +12,23 @@ from .web import WebPageContent, WebSearchProvider, WebSearchQuery, WebSearchRes
 __all__ = [
     "ProviderMetadata",
     "SignalProvider",
+    "BisCreditGap",
+    "BisCreditGapQuery",
+    "BisPolicyRate",
+    "BisProvider",
+    "BisRateQuery",
     "CMEFedWatchProvider",
     "FedMeetingProbability",
     "FedRateProb",
+    "CoinGeckoMarket",
+    "CoinGeckoMarketQuery",
+    "CoinGeckoPrice",
+    "CoinGeckoPriceQuery",
+    "CoinGeckoProvider",
+    "EdgarFiling",
+    "EdgarInsiderQuery",
+    "EdgarInsiderSummary",
+    "EdgarProvider",
     "FearGreedProvider",
     "FearGreedSnapshot",
     "KalshiMarket",

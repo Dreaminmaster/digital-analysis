@@ -6,19 +6,27 @@ from ..analysis.engine import AnalysisOutput
 class MarkdownReportRenderer:
     def render(self, output: AnalysisOutput) -> str:
         lines = [
-            f"# Analysis Report",
+            "# Analysis Report",
             "",
-            f"## Question",
+            "## Question",
             output.task.question,
             "",
-            f"## Summary",
+            "## Summary",
             output.summary,
             "",
-            f"## Confidence",
+            "## Confidence",
             f"{output.confidence:.0%}",
             "",
-            "## Evidence Gaps",
+            "## Planned Evidence",
         ]
+        if output.evidence.items:
+            for item in output.evidence.items:
+                lines.append(f"- **{item.label}**: {item.summary}")
+        else:
+            lines.append("- None")
+
+        lines.append("")
+        lines.append("## Evidence Gaps")
         lines.extend([f"- {gap}" for gap in output.gaps] or ["- None"])
         if output.contradictions:
             lines.append("")
