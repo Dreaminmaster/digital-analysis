@@ -3,8 +3,10 @@ from typing import Any, Mapping
 
 from digital_analysis.providers.cme_fedwatch import CMEFedWatchProvider
 from digital_analysis.providers.fear_greed import FearGreedProvider
+from digital_analysis.providers.kalshi import KalshiMarketQuery, KalshiProvider
 from digital_analysis.providers.polymarket import PolymarketEventQuery, PolymarketProvider
 from digital_analysis.providers.treasury import USTreasuryProvider
+from digital_analysis.providers.web import WebSearchProvider
 
 
 class FakeJsonClient:
@@ -14,6 +16,9 @@ class FakeJsonClient:
     def get_json(self, url: str, *, params: Mapping[str, object] | None = None) -> Any:
         return self.payload
 
+    def post_json(self, url: str, *, body: Mapping[str, object] | None = None, params: Mapping[str, object] | None = None, headers: Mapping[str, str] | None = None) -> Any:
+        return self.payload
+
 
 class FakeTextClient:
     def __init__(self, text: str):
@@ -21,6 +26,14 @@ class FakeTextClient:
 
     def get_text(self, url: str, *, params: Mapping[str, object] | None = None) -> str:
         return self.text
+
+
+class FakeSearchClient:
+    def __init__(self, html: str):
+        self.html = html
+
+    def fetch(self, url: str, *, headers: dict[str, str] | None = None) -> str:
+        return self.html
 
 
 class ProviderTests(unittest.TestCase):
@@ -69,6 +82,18 @@ class ProviderTests(unittest.TestCase):
         rows = CMEFedWatchProvider(http_client=FakeJsonClient(payload)).get_probabilities()
         self.assertEqual(len(rows), 1)
         self.assertEqual(len(rows[0].probabilities), 2)
+
+    def test_kalshi_parse(self) -> None:
+        payload = {"markets": [{"ticker": "KXFED-26JUN", "event_ticker": "KXFED", "status": "open", "title": "Fed range", "yes_bid": 42, "yes_ask": 44, "last_price": 43, "volume": 1000, "open_interest": 500}]}
+        rows = KalshiProvider(http_client=FakeJsonClient(payload)).list_markets(KalshiMarketQuery())
+        self.assertEqual(len(rows), 1)
+        self.assertAlmostEqual(rows[0].yes_probability or 0.0, 0.43, places=2)
+
+    def test_web_search_parse(self) -> None:
+        html = '<a class="result__a" href="https://example.com">VIX Index</a><a class="result__snippet">Current volatility index</a>'
+        result = WebSearchProvider(http_client=FakeSearchClient(html)).search("VIX index")
+        self.assertEqual(len(result.snippets), 1)
+        self.assertEqual(result.snippets[0].title, "VIX Index")
 
 
 if __name__ == "__main__":

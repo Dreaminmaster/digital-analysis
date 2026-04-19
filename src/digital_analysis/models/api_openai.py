@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
 from ..execution.http import JsonHttpClient, UrllibHttpClient
@@ -16,7 +15,7 @@ class OpenAICompatibleModel:
 
     def complete(self, request: ModelRequest) -> ModelResponse:
         client = self.http_client or UrllibHttpClient(headers={
-            "Content-Type": "application/json",
+            "Accept": "application/json",
             "Authorization": f"Bearer {self.api_key}",
             "User-Agent": "digital-analysis/0.1",
         })
@@ -26,10 +25,16 @@ class OpenAICompatibleModel:
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
         }
-        # Current HTTP layer is GET-oriented, so this adapter is a placeholder contract.
-        # Next step: add POST support in execution/http.py and wire this fully.
-        return ModelResponse(
-            text="[OpenAI-compatible adapter scaffold: POST transport not wired yet]",
-            model_name=self.model_name,
-            raw=payload,
-        )
+        data = client.post_json(f"{self.base_url.rstrip('/')}/chat/completions", body=payload)
+        text = ""
+        if isinstance(data, dict):
+            choices = data.get("choices")
+            if isinstance(choices, list) and choices:
+                first = choices[0]
+                if isinstance(first, dict):
+                    message = first.get("message")
+                    if isinstance(message, dict):
+                        content = message.get("content")
+                        if isinstance(content, str):
+                            text = content
+        return ModelResponse(text=text, model_name=self.model_name, raw=data)

@@ -15,6 +15,14 @@ class HttpClientError(RuntimeError):
 
 class JsonHttpClient(Protocol):
     def get_json(self, url: str, *, params: Mapping[str, object] | None = None) -> Any: ...
+    def post_json(
+        self,
+        url: str,
+        *,
+        body: Mapping[str, object] | None = None,
+        params: Mapping[str, object] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> Any: ...
 
 
 class TextHttpClient(Protocol):
@@ -62,6 +70,29 @@ class UrllibHttpClient:
         except json.JSONDecodeError as exc:
             raise HttpClientError(f"invalid json payload: {request.full_url}") from exc
 
+    def post_json(
+        self,
+        url: str,
+        *,
+        body: Mapping[str, object] | None = None,
+        params: Mapping[str, object] | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> Any:
+        request = self._build_request(
+            url,
+            params,
+            method="POST",
+            body=json.dumps(body or {}).encode("utf-8"),
+            extra_headers={"Content-Type": "application/json", **(headers or {})},
+        )
+        try:
+            with self._open(request) as response:
+                return json.load(response)
+        except HTTPError as exc:
+            raise HttpClientError(f"request failed: {request.full_url}") from exc
+        except json.JSONDecodeError as exc:
+            raise HttpClientError(f"invalid json payload: {request.full_url}") from exc
+
     def get_text(self, url: str, *, params: Mapping[str, object] | None = None) -> str:
         request = self._build_request(url, params)
         try:
@@ -70,8 +101,19 @@ class UrllibHttpClient:
         except HTTPError as exc:
             raise HttpClientError(f"request failed: {request.full_url}") from exc
 
-    def _build_request(self, url: str, params: Mapping[str, object] | None) -> Request:
-        return Request(_build_url(url, params), headers=dict(self.headers))
+    def _build_request(
+        self,
+        url: str,
+        params: Mapping[str, object] | None,
+        *,
+        method: str = "GET",
+        body: bytes | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> Request:
+        headers = dict(self.headers)
+        if extra_headers:
+            headers.update(extra_headers)
+        return Request(_build_url(url, params), data=body, headers=headers, method=method)
 
     def _open(self, request: Request):
         last_error: Exception | None = None
