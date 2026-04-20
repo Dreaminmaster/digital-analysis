@@ -1,6 +1,5 @@
 import unittest
 
-from digital_analysis.contracts.evidence import EvidenceBundle
 from digital_analysis.orchestrator import DigitalAnalysisOrchestrator
 from digital_analysis.reports.builder import ReportSynthesizer
 from digital_analysis.models.base import ModelResponse
@@ -15,6 +14,7 @@ class FakeWorkflow:
     def enrich(self, analysis, **kwargs):
         metadata = dict(analysis.metadata)
         metadata['fake_enriched'] = True
+        metadata['kwargs'] = kwargs
         return type(analysis)(
             task=analysis.task,
             plan=analysis.plan,
@@ -31,7 +31,7 @@ class FakeWorkflow:
 class FakeWorkflowRouter:
     def build(self, task):
         class Sel:
-            workflow_name = 'recession'
+            workflow_name = 'asset_pricing'
             reason = 'fake route'
         return FakeWorkflow(), Sel()
 
@@ -48,11 +48,12 @@ class OrchestratorTests(unittest.TestCase):
         result = orchestrator.run("Will there be a recession next year?")
         self.assertEqual(result.synthesized_text, "synthetic answer")
 
-    def test_auto_enrich_uses_workflow_router(self) -> None:
+    def test_auto_enrich_uses_workflow_router_and_target_asset(self) -> None:
         orchestrator = DigitalAnalysisOrchestrator(workflow_router=FakeWorkflowRouter(), auto_enrich=True)
-        result = orchestrator.run("Will there be a recession next year?")
+        result = orchestrator.run("Should I buy gold now?")
         self.assertEqual(result.analysis.summary, 'fake enriched summary')
         self.assertIn('workflow', result.analysis.metadata)
+        self.assertEqual(result.analysis.metadata.get('target_asset'), 'GLD')
 
 
 if __name__ == "__main__":

@@ -40,6 +40,8 @@ class AnalyzeResponse(BaseModel):  # type: ignore[misc,valid-type]
     scenarios: list[str]
     uncertainty: list[str]
     suggested_next_checks: list[str]
+    answer_version: str
+    reasoning_trace_ids: list[str]
     markdown_report: str
     metadata: dict[str, Any]
     synthesized_text: str | None = None
@@ -157,6 +159,9 @@ def create_app(*, model: ChatModel | None = None) -> Any:
         result = service.analyze(req.question)
         synthesized_text = result.synthesized_text if req.synthesize else None
         key_evidence = [EvidenceResponse(label=item.label, summary=item.summary, value_text=item.value_text) for item in result.answer.key_evidence]
+        answer_version = str(result.answer.metadata.get("answer_version", "v1.0"))
+        trace_ids_raw = result.answer.metadata.get("reasoning_trace_ids", ())
+        trace_ids = [str(x) for x in trace_ids_raw] if isinstance(trace_ids_raw, (list, tuple)) else []
         return AnalyzeResponse(
             question=result.answer.question,
             task_type=result.task.task_type.value,
@@ -169,6 +174,8 @@ def create_app(*, model: ChatModel | None = None) -> Any:
             scenarios=list(result.answer.scenarios),
             uncertainty=list(result.answer.uncertainty),
             suggested_next_checks=list(result.answer.suggested_next_checks),
+            answer_version=answer_version,
+            reasoning_trace_ids=trace_ids,
             markdown_report=result.markdown_report,
             metadata=result.answer.metadata,
             synthesized_text=synthesized_text,

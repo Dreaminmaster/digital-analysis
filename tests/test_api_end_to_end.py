@@ -26,6 +26,8 @@ class ApiEndToEndTests(unittest.TestCase):
         self.assertIn('scenarios', data)
         self.assertIn('uncertainty', data)
         self.assertIn('suggested_next_checks', data)
+        self.assertIn('answer_version', data)
+        self.assertIn('reasoning_trace_ids', data)
         self.assertIn('markdown_report', data)
         self.assertIn('metadata', data)
 

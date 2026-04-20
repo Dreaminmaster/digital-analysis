@@ -69,6 +69,7 @@ class DigitalAnalysisOrchestrator:
                         "name": selection.workflow_name,
                         "reason": selection.reason,
                     }
+                    metadata["target_asset"] = task.target_asset
                     analysis = AnalysisOutput(
                         task=analysis.task,
                         plan=analysis.plan,
@@ -83,6 +84,7 @@ class DigitalAnalysisOrchestrator:
                 except Exception as exc:
                     metadata = dict(analysis.metadata)
                     metadata["workflow_error"] = str(exc)
+                    metadata["target_asset"] = task.target_asset
                     analysis = AnalysisOutput(
                         task=analysis.task,
                         plan=analysis.plan,

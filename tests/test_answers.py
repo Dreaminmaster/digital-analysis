@@ -39,6 +39,16 @@ class AnswerTests(unittest.TestCase):
         labels = [x.label for x in answer.key_evidence]
         self.assertEqual(labels[0], 'high')
 
+    def test_task_specific_conclusion_template(self) -> None:
+        macro = AnalysisEngine().analyze(TaskSpec('macro q', TaskType.MACRO, TimeHorizon.MEDIUM), SimplePlanner().plan(TaskSpec('macro q', TaskType.MACRO, TimeHorizon.MEDIUM)))
+        geo = AnalysisEngine().analyze(TaskSpec('geo q', TaskType.GEOPOLITICAL, TimeHorizon.SHORT), SimplePlanner().plan(TaskSpec('geo q', TaskType.GEOPOLITICAL, TimeHorizon.SHORT)))
+        a1 = OneShotAnswerBuilder().build(macro)
+        a2 = OneShotAnswerBuilder().build(geo)
+        self.assertIn('Macro-pricing evidence', a1.conclusion)
+        self.assertIn('Geopolitical risk pricing', a2.conclusion)
+        self.assertIn('answer_version', a1.metadata)
+        self.assertIn('reasoning_trace_ids', a1.metadata)
+
 
 if __name__ == '__main__':
     unittest.main()
