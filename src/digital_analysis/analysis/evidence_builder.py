@@ -7,6 +7,8 @@ from ..providers.cme_fedwatch import FedMeetingProbability
 from ..providers.fear_greed import FearGreedSnapshot
 from ..providers.polymarket import PolymarketEvent
 from ..providers.treasury import YieldCurveSnapshot
+from ..providers.prices import PriceHistory
+from ..providers.cftc import CftcCotReport
 
 
 @dataclass
@@ -86,6 +88,50 @@ class EvidenceBuilder:
                 )
             )
         return tuple(items)
+
+    def from_price_history(self, history: PriceHistory, *, label: str | None = None) -> tuple[EvidenceItem, ...]:
+        latest = history.latest
+        earliest = history.earliest
+        if latest is None or earliest is None:
+            return ()
+        pct_change = ((latest.close - earliest.close) / earliest.close) if earliest.close else None
+        direction = None
+        value_text = None
+        if pct_change is not None:
+            direction = "up" if pct_change > 0 else "down" if pct_change < 0 else "flat"
+            value_text = f"change={pct_change:.1%} latest={latest.close:.2f}"
+        return (
+            EvidenceItem(
+                kind=EvidenceKind.PRICE,
+                label=label or history.symbol,
+                summary=f"Price history from {history.provider_id or 'price provider'}",
+                value_text=value_text,
+                direction=direction,
+                horizon="short",
+                confidence_hint=0.7,
+                provenance=SourceProvenance(provider_id=history.provider_id or "price_provider", as_of=latest.date),
+                metadata={"symbol": history.symbol, "interval": history.interval},
+            ),
+        )
+
+    def from_cftc_reports(self, reports: list[CftcCotReport], *, label: str = "cftc_positioning") -> tuple[EvidenceItem, ...]:
+        if not reports:
+            return ()
+        first = reports[0]
+        net = first.noncommercial_net
+        direction = None if net is None else "spec_long" if net > 0 else "spec_short" if net < 0 else "neutral"
+        return (
+            EvidenceItem(
+                kind=EvidenceKind.POSITIONING,
+                label=label,
+                summary=first.market_name,
+                value_text=(f"noncommercial_net={net}" if net is not None else None),
+                direction=direction,
+                horizon="medium",
+                confidence_hint=0.72,
+                provenance=SourceProvenance(provider_id="cftc_cot", as_of=first.report_date),
+            ),
+        )
 
     def combine(self, *groups: tuple[EvidenceItem, ...]) -> EvidenceBundle:
         merged: list[EvidenceItem] = []
