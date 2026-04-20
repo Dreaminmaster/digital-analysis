@@ -28,18 +28,28 @@ class EvidenceResponse(BaseModel):  # type: ignore[misc,valid-type]
     value_text: str | None = None
 
 
+class ReasoningTraceResponse(BaseModel):  # type: ignore[misc,valid-type]
+    trace_id: str
+    label: str
+    direction: str | None = None
+    confidence_hint: float | None = None
+    provider_id: str | None = None
+
+
 class AnalyzeResponse(BaseModel):  # type: ignore[misc,valid-type]
     question: str
     task_type: str
     horizon: str
     priceable: bool
     conclusion: str
+    verdict: str
     confidence: float
     key_evidence: list[EvidenceResponse]
     contradictory_evidence: list[str]
     scenarios: list[str]
     uncertainty: list[str]
     suggested_next_checks: list[str]
+    reasoning_traces: list[ReasoningTraceResponse]
     answer_version: str
     reasoning_trace_ids: list[str]
     markdown_report: str
@@ -159,6 +169,16 @@ def create_app(*, model: ChatModel | None = None) -> Any:
         result = service.analyze(req.question)
         synthesized_text = result.synthesized_text if req.synthesize else None
         key_evidence = [EvidenceResponse(label=item.label, summary=item.summary, value_text=item.value_text) for item in result.answer.key_evidence]
+        traces = [
+            ReasoningTraceResponse(
+                trace_id=t.trace_id,
+                label=t.label,
+                direction=t.direction,
+                confidence_hint=t.confidence_hint,
+                provider_id=t.provider_id,
+            )
+            for t in result.answer.reasoning_traces
+        ]
         answer_version = str(result.answer.metadata.get("answer_version", "v1.0"))
         trace_ids_raw = result.answer.metadata.get("reasoning_trace_ids", ())
         trace_ids = [str(x) for x in trace_ids_raw] if isinstance(trace_ids_raw, (list, tuple)) else []
@@ -168,12 +188,14 @@ def create_app(*, model: ChatModel | None = None) -> Any:
             horizon=result.task.horizon.value,
             priceable=result.priceability.priceable,
             conclusion=result.answer.conclusion,
+            verdict=result.answer.verdict,
             confidence=result.answer.confidence,
             key_evidence=key_evidence,
             contradictory_evidence=list(result.answer.contradictory_evidence),
             scenarios=list(result.answer.scenarios),
             uncertainty=list(result.answer.uncertainty),
             suggested_next_checks=list(result.answer.suggested_next_checks),
+            reasoning_traces=traces,
             answer_version=answer_version,
             reasoning_trace_ids=trace_ids,
             markdown_report=result.markdown_report,
