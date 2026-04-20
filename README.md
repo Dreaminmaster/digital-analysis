@@ -53,31 +53,61 @@ src/digital_analysis/
 
 ## Current Status
 
-This repo is now initialized as a **working enhanced scaffold**.
+This repo is now a **working enhanced foundation** that preserves and extends the original market-signal approach.
 
 Implemented so far:
 
 1. package layout and project configuration
 2. architecture / upgrade / product strategy docs
-3. baseline task contracts
+3. task contracts + evidence contracts
 4. task classifier + priceability checker + simple planner
-5. execution layer (`http`, `gather`)
-6. initial provider set:
+5. execution layer:
+   - HTTP GET/POST
+   - concurrent gather
+   - snapshot record/replay
+6. provider coverage now includes:
    - Polymarket
+   - Kalshi
    - U.S. Treasury
    - CNN Fear & Greed
    - CME FedWatch
-7. baseline analysis engine and markdown report renderer
-8. CLI skeleton
-9. standard-library test suite passing
+   - Web Search
+   - SEC EDGAR
+   - CoinGecko
+   - BIS
+   - CFTC
+   - Deribit
+   - World Bank
+   - Yahoo Price
+   - Stooq
+   - YFinance Options
+7. baseline autonomous analysis:
+   - contradiction detection
+   - horizon grouping
+   - confidence scoring
+   - scenario composition
+8. report and synthesis layer:
+   - markdown renderer
+   - synthesis prompt builder
+   - model-backed report synthesizer
+9. model layer:
+   - router
+   - OpenAI-compatible adapter
+   - Ollama adapter
+10. orchestration and product-facing surface:
+   - end-to-end orchestrator
+   - analysis service
+   - FastAPI app scaffold
+   - CLI entrypoint
+11. standard-library test suite passing
 
 Near-term next priorities:
 
-1. richer evidence contracts
-2. contradiction engine and horizon grouping
-3. provider expansion (Kalshi, Web, EDGAR, CFTC, Deribit, YFinance)
-4. model adapters (cloud API + local model)
-5. API/service layer and scheduled monitoring
+1. provider-driven evidence extraction from real fetched data
+2. richer signal scoring and weighting
+3. API deployment instructions and runtime wiring
+4. scheduled monitoring / watchlists / persistence
+5. stronger end-to-end examples using real providers and models
 
 ## License
 

@@ -2,11 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from ..analysis.engine import AnalysisEngine
-from ..planner.classifier import TaskClassifier
-from ..planner.planner import SimplePlanner
-from ..planner.priceability import PriceabilityChecker
-from ..reports.markdown import MarkdownReportRenderer
+from ..orchestrator import DigitalAnalysisOrchestrator
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,21 +15,8 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    classifier = TaskClassifier()
-    task = classifier.classify(args.question)
-
-    checker = PriceabilityChecker()
-    assessment = checker.assess(task)
-
-    planner = SimplePlanner()
-    plan = planner.plan(task)
-
-    engine = AnalysisEngine()
-    output = engine.analyze(task, plan)
-    output.metadata["priceability"] = assessment.reason
-
-    report = MarkdownReportRenderer().render(output)
-    print(report)
+    result = DigitalAnalysisOrchestrator().run(args.question)
+    print(result.markdown_report)
     return 0
 
 
