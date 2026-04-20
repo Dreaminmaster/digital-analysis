@@ -8,8 +8,13 @@ from .edgar import EdgarFiling, EdgarInsiderQuery, EdgarInsiderSummary, EdgarPro
 from .fear_greed import FearGreedProvider, FearGreedSnapshot
 from .kalshi import KalshiMarket, KalshiMarketQuery, KalshiProvider
 from .polymarket import OutcomeQuote, PolymarketEvent, PolymarketEventQuery, PolymarketMarket, PolymarketProvider
+from .prices import PriceBar, PriceHistory, PriceHistoryQuery
+from .stooq import StooqProvider
 from .treasury import USTreasuryProvider, YieldCurveQuery, YieldCurveSnapshot, YieldPoint
 from .web import WebPageContent, WebSearchProvider, WebSearchQuery, WebSearchResult, WebSearchSnippet
+from .worldbank import WorldBankDataPoint, WorldBankProvider, WorldBankQuery, WorldBankResult
+from .yahoo import YahooPriceProvider
+from .yfinance_provider import OptionContract, OptionGreeks, OptionsChain, OptionsChainQuery, OptionsExpirations, YFinanceProvider, black_scholes_greeks
 
 __all__ = [
     "ProviderMetadata",
@@ -51,6 +56,10 @@ __all__ = [
     "PolymarketEventQuery",
     "PolymarketMarket",
     "PolymarketProvider",
+    "PriceBar",
+    "PriceHistory",
+    "PriceHistoryQuery",
+    "StooqProvider",
     "USTreasuryProvider",
     "YieldCurveQuery",
     "YieldCurveSnapshot",
@@ -60,4 +69,16 @@ __all__ = [
     "WebSearchQuery",
     "WebSearchResult",
     "WebSearchSnippet",
+    "WorldBankDataPoint",
+    "WorldBankProvider",
+    "WorldBankQuery",
+    "WorldBankResult",
+    "YahooPriceProvider",
+    "OptionContract",
+    "OptionGreeks",
+    "OptionsChain",
+    "OptionsChainQuery",
+    "OptionsExpirations",
+    "YFinanceProvider",
+    "black_scholes_greeks",
 ]
