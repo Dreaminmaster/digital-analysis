@@ -109,6 +109,40 @@ Near-term next priorities:
 4. scheduled monitoring / watchlists / persistence
 5. stronger end-to-end examples using real providers and models
 
+## Running the API
+
+Install API dependencies:
+
+```bash
+python3 -m pip install fastapi uvicorn
+```
+
+Start the API:
+
+```bash
+cd /var/minis/workspace/digital-analysis
+PYTHONPATH=src python3 -m uvicorn examples.api_app:app --host 127.0.0.1 --port 8787
+```
+
+Recommended validation method in development/tests:
+- use FastAPI `TestClient` for in-process verification
+- local loopback HTTP can be environment-sensitive on iSH
+
+Example request body:
+
+```json
+{
+  "question": "Will there be a recession next year?",
+  "synthesize": false
+}
+```
+
+## Example Scripts
+
+- [Recession Demo](minis://workspace/digital-analysis/examples/recession_demo.py)
+- [Geopolitical Demo](minis://workspace/digital-analysis/examples/geopolitical_demo.py)
+- [API App](minis://workspace/digital-analysis/examples/api_app.py)
+
 ## License
 
 MIT
