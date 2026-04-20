@@ -3,12 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..contracts.evidence import EvidenceBundle, EvidenceItem, EvidenceKind, SourceProvenance
+from ..providers.cftc import CftcCotReport
 from ..providers.cme_fedwatch import FedMeetingProbability
+from ..providers.coingecko import CoinGeckoPrice
+from ..providers.deribit import DeribitFuturesTermStructure, DeribitOptionChain
+from ..providers.edgar import EdgarInsiderSummary
 from ..providers.fear_greed import FearGreedSnapshot
 from ..providers.polymarket import PolymarketEvent
-from ..providers.treasury import YieldCurveSnapshot
 from ..providers.prices import PriceHistory
-from ..providers.cftc import CftcCotReport
+from ..providers.treasury import YieldCurveSnapshot
+from ..providers.yfinance_provider import OptionsChain
 
 
 @dataclass
@@ -130,6 +134,88 @@ class EvidenceBuilder:
                 horizon="medium",
                 confidence_hint=0.72,
                 provenance=SourceProvenance(provider_id="cftc_cot", as_of=first.report_date),
+            ),
+        )
+
+    def from_coingecko_prices(self, rows: list[CoinGeckoPrice]) -> tuple[EvidenceItem, ...]:
+        items: list[EvidenceItem] = []
+        for row in rows:
+            items.append(
+                EvidenceItem(
+                    kind=EvidenceKind.PRICE,
+                    label=f"coingecko:{row.coin_id}",
+                    summary=f"Spot crypto price for {row.coin_id}",
+                    value_text=(f"price={row.price}" if row.price is not None else None),
+                    direction="risk_on" if row.coin_id in ("bitcoin", "ethereum") else None,
+                    horizon="short",
+                    confidence_hint=0.68,
+                    provenance=SourceProvenance(provider_id="coingecko"),
+                )
+            )
+        return tuple(items)
+
+    def from_edgar_insiders(self, summary: EdgarInsiderSummary) -> tuple[EvidenceItem, ...]:
+        count = len(summary.recent_form4s)
+        return (
+            EvidenceItem(
+                kind=EvidenceKind.INSIDER,
+                label=f"edgar:{summary.ticker}",
+                summary=f"Recent Form 4 filings for {summary.company_name}",
+                value_text=f"recent_form4s={count} total={summary.total_form4_count}",
+                direction="insider_activity",
+                horizon="short",
+                confidence_hint=0.66,
+                provenance=SourceProvenance(provider_id="sec_edgar"),
+            ),
+        )
+
+    def from_deribit_futures(self, curve: DeribitFuturesTermStructure) -> tuple[EvidenceItem, ...]:
+        if not curve.points:
+            return ()
+        first = curve.points[0]
+        return (
+            EvidenceItem(
+                kind=EvidenceKind.CURVE,
+                label=f"deribit:{curve.currency}:futures",
+                summary=f"Deribit futures term structure for {curve.currency}",
+                value_text=(f"front_mark={first.mark_price}" if first.mark_price is not None else None),
+                direction="risk_on" if curve.currency.upper() == "BTC" else None,
+                horizon="short",
+                confidence_hint=0.7,
+                provenance=SourceProvenance(provider_id="deribit"),
+            ),
+        )
+
+    def from_deribit_options(self, chain: DeribitOptionChain) -> tuple[EvidenceItem, ...]:
+        if not chain.quotes:
+            return ()
+        first = chain.quotes[0]
+        return (
+            EvidenceItem(
+                kind=EvidenceKind.VOLATILITY,
+                label=f"deribit:{chain.currency}:options",
+                summary=f"Deribit options chain for {chain.currency}",
+                value_text=(f"mark_iv={first.mark_iv}" if first.mark_iv is not None else None),
+                direction="volatility_pricing",
+                horizon="short",
+                confidence_hint=0.72,
+                provenance=SourceProvenance(provider_id="deribit"),
+            ),
+        )
+
+    def from_yfinance_chain(self, chain: OptionsChain) -> tuple[EvidenceItem, ...]:
+        implied_move = chain.implied_move()
+        atm_iv = chain.atm_iv
+        return (
+            EvidenceItem(
+                kind=EvidenceKind.VOLATILITY,
+                label=f"yfinance:{chain.ticker}:options",
+                summary=f"Options chain for {chain.ticker}",
+                value_text=(f"atm_iv={atm_iv:.1%} implied_move={implied_move:.1%}" if atm_iv is not None and implied_move is not None else None),
+                direction="volatility_pricing",
+                horizon="short",
+                confidence_hint=0.76,
+                provenance=SourceProvenance(provider_id="yfinance"),
             ),
         )
 
