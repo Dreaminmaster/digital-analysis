@@ -1,6 +1,7 @@
 """digital_analysis package."""
 
 from .analysis.engine import AnalysisEngine, AnalysisOutput
+from .analysis.router import WorkflowRouter, WorkflowSelection
 from .contracts.evidence import EvidenceBundle, EvidenceItem, EvidenceKind, SourceProvenance
 from .contracts.tasks import TaskSpec, TaskType, TimeHorizon
 from .execution.concurrent import GatherError, GatherResult, gather
@@ -30,6 +31,8 @@ __all__ = [
     "TaskSpec",
     "TaskType",
     "TimeHorizon",
+    "WorkflowRouter",
+    "WorkflowSelection",
     "ModelBackend",
     "ModelRouter",
     "ModelTask",
