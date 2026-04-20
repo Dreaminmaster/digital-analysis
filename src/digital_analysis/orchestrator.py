@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from .analysis.engine import AnalysisEngine, AnalysisOutput
 from .analysis.router import WorkflowRouter
+from .answers.builder import OneShotAnswerBuilder
+from .answers.schema import OneShotAnswer
 from .contracts.tasks import TaskSpec
 from .planner.classifier import TaskClassifier
 from .planner.planner import SimplePlanner
@@ -17,6 +19,7 @@ class OrchestratorResult:
     task: TaskSpec
     priceability: PriceabilityAssessment
     analysis: AnalysisOutput
+    answer: OneShotAnswer
     markdown_report: str
     synthesized_text: str | None = None
 
@@ -32,6 +35,7 @@ class DigitalAnalysisOrchestrator:
         markdown_renderer: MarkdownReportRenderer | None = None,
         synthesizer: ReportSynthesizer | None = None,
         workflow_router: WorkflowRouter | None = None,
+        answer_builder: OneShotAnswerBuilder | None = None,
         auto_enrich: bool = True,
     ) -> None:
         self.classifier = classifier or TaskClassifier()
@@ -41,6 +45,7 @@ class DigitalAnalysisOrchestrator:
         self.markdown_renderer = markdown_renderer or MarkdownReportRenderer()
         self.synthesizer = synthesizer
         self.workflow_router = workflow_router or WorkflowRouter()
+        self.answer_builder = answer_builder or OneShotAnswerBuilder()
         self.auto_enrich = auto_enrich
 
     def run(self, question: str) -> OrchestratorResult:
@@ -90,6 +95,7 @@ class DigitalAnalysisOrchestrator:
                         metadata=metadata,
                     )
 
+        answer = self.answer_builder.build(analysis)
         markdown_report = self.markdown_renderer.render(analysis)
         synthesized_text = None
         if self.synthesizer is not None:
@@ -98,6 +104,7 @@ class DigitalAnalysisOrchestrator:
             task=task,
             priceability=priceability,
             analysis=analysis,
+            answer=answer,
             markdown_report=markdown_report,
             synthesized_text=synthesized_text,
         )
