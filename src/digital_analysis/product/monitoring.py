@@ -54,3 +54,40 @@ class MonitoringService:
             "summary": result.analysis.summary,
         })
         return result
+
+    def run_all_monitors(self) -> list[dict[str, object]]:
+        outputs: list[dict[str, object]] = []
+        for monitor in self.list_monitors():
+            result = self.run_monitor(monitor.monitor_id)
+            outputs.append({
+                "monitor_id": monitor.monitor_id,
+                "topic": monitor.topic,
+                "confidence": result.analysis.confidence,
+                "summary": result.analysis.summary,
+            })
+        return outputs
+
+    def compare_monitor_runs(self, monitor_id: str) -> dict[str, object]:
+        runs = [r for r in self.store.list_monitor_runs() if r.get("monitor_id") == monitor_id]
+        runs = sorted(runs, key=lambda r: str(r.get("ran_at", "")))
+        if len(runs) < 2:
+            return {
+                "monitor_id": monitor_id,
+                "run_count": len(runs),
+                "message": "Not enough history to compare runs.",
+            }
+        prev = runs[-2]
+        latest = runs[-1]
+        prev_conf = float(prev.get("confidence", 0.0))
+        latest_conf = float(latest.get("confidence", 0.0))
+        delta = latest_conf - prev_conf
+        trend = "up" if delta > 0 else "down" if delta < 0 else "flat"
+        return {
+            "monitor_id": monitor_id,
+            "run_count": len(runs),
+            "previous_confidence": prev_conf,
+            "latest_confidence": latest_conf,
+            "confidence_delta": delta,
+            "trend": trend,
+            "latest_summary": latest.get("summary"),
+        }

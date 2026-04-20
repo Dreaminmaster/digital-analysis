@@ -90,6 +90,23 @@ class MonitorRunResponse(BaseModel):  # type: ignore[misc,valid-type]
     summary: str
 
 
+class MonitorRunTriggerResponse(BaseModel):  # type: ignore[misc,valid-type]
+    monitor_id: str
+    confidence: float
+    summary: str
+
+
+class MonitorComparisonResponse(BaseModel):  # type: ignore[misc,valid-type]
+    monitor_id: str
+    run_count: int
+    message: str | None = None
+    previous_confidence: float | None = None
+    latest_confidence: float | None = None
+    confidence_delta: float | None = None
+    trend: str | None = None
+    latest_summary: str | None = None
+
+
 def create_app(*, model: ChatModel | None = None) -> Any:
     if FastAPI is None:
         raise RuntimeError("fastapi and pydantic are required to create the API app")
@@ -144,37 +161,35 @@ def create_app(*, model: ChatModel | None = None) -> Any:
 
     @app.get('/watchlist', response_model=list[WatchlistItemResponse])
     def list_watchlist_items() -> list[WatchlistItemResponse]:
-        return [
-            WatchlistItemResponse(item_id=item.item_id, name=item.name, query=item.query, tags=list(item.tags))
-            for item in monitoring.list_watchlist_items()
-        ]
+        return [WatchlistItemResponse(item_id=item.item_id, name=item.name, query=item.query, tags=list(item.tags)) for item in monitoring.list_watchlist_items()]
 
     @app.post('/monitors', response_model=MonitorResponse)
     def create_monitor(req: MonitorCreateRequest) -> MonitorResponse:
         monitor = monitoring.create_monitor(topic=req.topic, query=req.query, schedule_hint=req.schedule_hint)
-        return MonitorResponse(
-            monitor_id=monitor.monitor_id,
-            topic=monitor.topic,
-            query=monitor.query,
-            schedule_hint=monitor.schedule_hint,
-            active=monitor.active,
-        )
+        return MonitorResponse(monitor_id=monitor.monitor_id, topic=monitor.topic, query=monitor.query, schedule_hint=monitor.schedule_hint, active=monitor.active)
 
     @app.get('/monitors', response_model=list[MonitorResponse])
     def list_monitors() -> list[MonitorResponse]:
-        return [
-            MonitorResponse(
-                monitor_id=item.monitor_id,
-                topic=item.topic,
-                query=item.query,
-                schedule_hint=item.schedule_hint,
-                active=item.active,
-            )
-            for item in monitoring.list_monitors()
-        ]
+        return [MonitorResponse(monitor_id=item.monitor_id, topic=item.topic, query=item.query, schedule_hint=item.schedule_hint, active=item.active) for item in monitoring.list_monitors()]
+
+    @app.post('/monitors/{monitor_id}/run', response_model=MonitorRunTriggerResponse)
+    def run_monitor(monitor_id: str) -> MonitorRunTriggerResponse:
+        result = monitoring.run_monitor(monitor_id)
+        monitor = next(item for item in monitoring.list_monitors() if item.monitor_id == monitor_id)
+        return MonitorRunTriggerResponse(monitor_id=monitor.monitor_id, confidence=result.analysis.confidence, summary=result.analysis.summary)
+
+    @app.post('/monitors/run-all')
+    def run_all_monitors() -> list[MonitorRunTriggerResponse]:
+        rows = monitoring.run_all_monitors()
+        return [MonitorRunTriggerResponse(monitor_id=str(row['monitor_id']), confidence=float(row['confidence']), summary=str(row['summary'])) for row in rows]
 
     @app.get('/monitor-runs', response_model=list[MonitorRunResponse])
     def list_monitor_runs() -> list[MonitorRunResponse]:
         return [MonitorRunResponse(**item) for item in monitoring.list_monitor_runs()]
+
+    @app.get('/monitors/{monitor_id}/compare', response_model=MonitorComparisonResponse)
+    def compare_monitor(monitor_id: str) -> MonitorComparisonResponse:
+        comparison = monitoring.compare_monitor_runs(monitor_id)
+        return MonitorComparisonResponse(**comparison)
 
     return app
