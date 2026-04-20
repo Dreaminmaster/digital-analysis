@@ -18,14 +18,18 @@ class FileStoreTests(unittest.TestCase):
     def test_file_store_persists_objects(self) -> None:
         store = FileStore(self.tmpdir)
         service = MonitoringService(orchestrator=DigitalAnalysisOrchestrator(auto_enrich=False), store=store)
-        item = service.create_watchlist_item(name='Macro', query='Will there be a recession next year?', tags=('macro',))
+        service.create_watchlist_item(name='Macro', query='Will there be a recession next year?', tags=('macro',))
         monitor = service.create_monitor(topic='Recession risk', query='Will there be a recession next year?')
+        service.run_monitor(monitor.monitor_id)
+        service.create_alert_rule(monitor_id=monitor.monitor_id, name='Confidence move', threshold=0.0)
         service.run_monitor(monitor.monitor_id)
 
         reloaded = FileStore(self.tmpdir)
         self.assertEqual(len(reloaded.list_watchlist_items()), 1)
         self.assertEqual(len(reloaded.list_monitors()), 1)
-        self.assertGreaterEqual(len(reloaded.list_monitor_runs()), 1)
+        self.assertGreaterEqual(len(reloaded.list_monitor_runs()), 2)
+        self.assertGreaterEqual(len(reloaded.list_alert_rules()), 1)
+        self.assertGreaterEqual(len(reloaded.list_alert_events()), 1)
 
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from ..orchestrator import DigitalAnalysisOrchestrator, OrchestratorResult
+from .alerts import AlertEvent, AlertRule
 from .models import AnalysisSession, TopicMonitor, WatchlistItem
 from .store import InMemoryStore
 
@@ -40,6 +41,16 @@ class MonitoringService:
     def list_monitor_runs(self) -> list[dict[str, object]]:
         return self.store.list_monitor_runs()
 
+    def create_alert_rule(self, *, monitor_id: str, name: str, metric: str = 'confidence_delta', operator: str = '>=', threshold: float = 0.1) -> AlertRule:
+        rule = AlertRule(rule_id=str(uuid.uuid4()), monitor_id=monitor_id, name=name, metric=metric, operator=operator, threshold=threshold)
+        return self.store.save_alert_rule(rule)
+
+    def list_alert_rules(self) -> list[AlertRule]:
+        return self.store.list_alert_rules()
+
+    def list_alert_events(self) -> list[AlertEvent]:
+        return self.store.list_alert_events()
+
     def run_monitor(self, monitor_id: str) -> OrchestratorResult:
         monitor = next(item for item in self.store.list_monitors() if item.monitor_id == monitor_id)
         result = self.run_analysis(monitor.query)
@@ -52,7 +63,10 @@ class MonitoringService:
             "task_type": result.task.task_type.value,
             "confidence": result.analysis.confidence,
             "summary": result.analysis.summary,
+            "contradiction_count": len(result.analysis.contradictions),
+            "evidence_count": len(result.analysis.evidence.items),
         })
+        self._evaluate_alerts(monitor.monitor_id)
         return result
 
     def run_all_monitors(self) -> list[dict[str, object]]:
@@ -82,6 +96,10 @@ class MonitoringService:
         latest_conf = float(latest.get("confidence", 0.0))
         delta = latest_conf - prev_conf
         trend = "up" if delta > 0 else "down" if delta < 0 else "flat"
+        prev_evidence = int(prev.get("evidence_count", 0))
+        latest_evidence = int(latest.get("evidence_count", 0))
+        prev_contra = int(prev.get("contradiction_count", 0))
+        latest_contra = int(latest.get("contradiction_count", 0))
         return {
             "monitor_id": monitor_id,
             "run_count": len(runs),
@@ -90,4 +108,36 @@ class MonitoringService:
             "confidence_delta": delta,
             "trend": trend,
             "latest_summary": latest.get("summary"),
+            "evidence_delta": latest_evidence - prev_evidence,
+            "contradiction_delta": latest_contra - prev_contra,
         }
+
+    def _evaluate_alerts(self, monitor_id: str) -> None:
+        comparison = self.compare_monitor_runs(monitor_id)
+        if comparison.get('run_count', 0) < 2:
+            return
+        for rule in self.list_alert_rules():
+            if rule.monitor_id != monitor_id or not rule.active:
+                continue
+            actual_value = float(comparison.get(rule.metric, 0.0) or 0.0)
+            triggered = False
+            if rule.operator == '>=':
+                triggered = actual_value >= rule.threshold
+            elif rule.operator == '>':
+                triggered = actual_value > rule.threshold
+            elif rule.operator == '<=':
+                triggered = actual_value <= rule.threshold
+            elif rule.operator == '<':
+                triggered = actual_value < rule.threshold
+            if triggered:
+                self.store.save_alert_event(
+                    AlertEvent(
+                        event_id=str(uuid.uuid4()),
+                        rule_id=rule.rule_id,
+                        monitor_id=monitor_id,
+                        metric=rule.metric,
+                        actual_value=actual_value,
+                        threshold=rule.threshold,
+                        message=f"Alert '{rule.name}' triggered for monitor {monitor_id}: {rule.metric}={actual_value}",
+                    )
+                )

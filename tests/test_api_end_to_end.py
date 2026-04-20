@@ -58,6 +58,19 @@ class ApiEndToEndTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIsInstance(resp.json(), list)
 
+    def test_alert_flow(self) -> None:
+        client = TestClient(app)
+        monitor = client.post('/monitors', json={'topic': 'Recession risk', 'query': 'Will there be a recession next year?', 'schedule_hint': 'daily'}).json()
+        client.post(f"/monitors/{monitor['monitor_id']}/run")
+        alert = client.post('/alerts', json={'monitor_id': monitor['monitor_id'], 'name': 'Confidence move', 'threshold': 0.0})
+        self.assertEqual(alert.status_code, 200)
+        client.post(f"/monitors/{monitor['monitor_id']}/run")
+        alerts = client.get('/alerts')
+        self.assertEqual(alerts.status_code, 200)
+        events = client.get('/alert-events')
+        self.assertEqual(events.status_code, 200)
+        self.assertGreaterEqual(len(events.json()), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

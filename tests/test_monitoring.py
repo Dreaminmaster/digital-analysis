@@ -22,6 +22,14 @@ class MonitoringTests(unittest.TestCase):
         self.assertTrue(result.priceability.priceable)
         self.assertGreaterEqual(len(service.list_monitor_runs()), 1)
 
+    def test_alert_trigger(self) -> None:
+        service = MonitoringService(orchestrator=DigitalAnalysisOrchestrator(auto_enrich=False))
+        monitor = service.create_monitor(topic='Recession risk', query='Will there be a recession next year?')
+        service.run_monitor(monitor.monitor_id)
+        service.create_alert_rule(monitor_id=monitor.monitor_id, name='Confidence move', threshold=0.0)
+        service.run_monitor(monitor.monitor_id)
+        self.assertGreaterEqual(len(service.list_alert_events()), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

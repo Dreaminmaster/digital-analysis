@@ -105,6 +105,37 @@ class MonitorComparisonResponse(BaseModel):  # type: ignore[misc,valid-type]
     confidence_delta: float | None = None
     trend: str | None = None
     latest_summary: str | None = None
+    evidence_delta: int | None = None
+    contradiction_delta: int | None = None
+
+
+class AlertRuleCreateRequest(BaseModel):  # type: ignore[misc,valid-type]
+    monitor_id: str
+    name: str
+    metric: str = 'confidence_delta'
+    operator: str = '>='
+    threshold: float = 0.1
+
+
+class AlertRuleResponse(BaseModel):  # type: ignore[misc,valid-type]
+    rule_id: str
+    monitor_id: str
+    name: str
+    metric: str
+    operator: str
+    threshold: float
+    active: bool
+
+
+class AlertEventResponse(BaseModel):  # type: ignore[misc,valid-type]
+    event_id: str
+    rule_id: str
+    monitor_id: str
+    triggered_at: str
+    metric: str
+    actual_value: float
+    threshold: float
+    message: str
 
 
 def create_app(*, model: ChatModel | None = None) -> Any:
@@ -127,17 +158,7 @@ def create_app(*, model: ChatModel | None = None) -> Any:
             raise HTTPException(status_code=400, detail="question must not be empty")
         result = service.analyze(req.question)
         synthesized_text = result.synthesized_text if req.synthesize else None
-        evidence = [
-            EvidenceResponse(
-                label=item.label,
-                summary=item.summary,
-                value_text=item.value_text,
-                direction=item.direction,
-                horizon=item.horizon,
-                confidence_hint=item.confidence_hint,
-            )
-            for item in result.analysis.evidence.items
-        ]
+        evidence = [EvidenceResponse(label=item.label, summary=item.summary, value_text=item.value_text, direction=item.direction, horizon=item.horizon, confidence_hint=item.confidence_hint) for item in result.analysis.evidence.items]
         return AnalyzeResponse(
             task_type=result.task.task_type.value,
             horizon=result.task.horizon.value,
@@ -191,5 +212,18 @@ def create_app(*, model: ChatModel | None = None) -> Any:
     def compare_monitor(monitor_id: str) -> MonitorComparisonResponse:
         comparison = monitoring.compare_monitor_runs(monitor_id)
         return MonitorComparisonResponse(**comparison)
+
+    @app.post('/alerts', response_model=AlertRuleResponse)
+    def create_alert(req: AlertRuleCreateRequest) -> AlertRuleResponse:
+        rule = monitoring.create_alert_rule(monitor_id=req.monitor_id, name=req.name, metric=req.metric, operator=req.operator, threshold=req.threshold)
+        return AlertRuleResponse(rule_id=rule.rule_id, monitor_id=rule.monitor_id, name=rule.name, metric=rule.metric, operator=rule.operator, threshold=rule.threshold, active=rule.active)
+
+    @app.get('/alerts', response_model=list[AlertRuleResponse])
+    def list_alerts() -> list[AlertRuleResponse]:
+        return [AlertRuleResponse(rule_id=r.rule_id, monitor_id=r.monitor_id, name=r.name, metric=r.metric, operator=r.operator, threshold=r.threshold, active=r.active) for r in monitoring.list_alert_rules()]
+
+    @app.get('/alert-events', response_model=list[AlertEventResponse])
+    def list_alert_events() -> list[AlertEventResponse]:
+        return [AlertEventResponse(event_id=e.event_id, rule_id=e.rule_id, monitor_id=e.monitor_id, triggered_at=e.triggered_at, metric=e.metric, actual_value=e.actual_value, threshold=e.threshold, message=e.message) for e in monitoring.list_alert_events()]
 
     return app
