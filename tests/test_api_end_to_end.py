@@ -40,6 +40,14 @@ class ApiEndToEndTests(unittest.TestCase):
         self.assertEqual(monitors.status_code, 200)
         self.assertGreaterEqual(len(monitors.json()), 1)
 
+    def test_monitor_runs_endpoint(self) -> None:
+        client = TestClient(app)
+        monitor = client.post('/monitors', json={'topic': 'Recession risk', 'query': 'Will there be a recession next year?', 'schedule_hint': 'daily'}).json()
+        # endpoint only lists history; running a monitor is currently done through service layer tests
+        runs = client.get('/monitor-runs')
+        self.assertEqual(runs.status_code, 200)
+        self.assertIsInstance(runs.json(), list)
+
 
 if __name__ == '__main__':
     unittest.main()

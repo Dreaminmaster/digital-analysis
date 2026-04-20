@@ -20,6 +20,7 @@ class MonitoringTests(unittest.TestCase):
         monitor = service.create_monitor(topic='Recession risk', query='Will there be a recession next year?')
         result = service.run_monitor(monitor.monitor_id)
         self.assertTrue(result.priceability.priceable)
+        self.assertGreaterEqual(len(service.list_monitor_runs()), 1)
 
 
 if __name__ == '__main__':

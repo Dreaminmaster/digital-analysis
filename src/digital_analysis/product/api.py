@@ -79,6 +79,17 @@ class MonitorResponse(BaseModel):  # type: ignore[misc,valid-type]
     active: bool
 
 
+class MonitorRunResponse(BaseModel):  # type: ignore[misc,valid-type]
+    run_id: str
+    monitor_id: str
+    topic: str
+    query: str
+    ran_at: str
+    task_type: str
+    confidence: float
+    summary: str
+
+
 def create_app(*, model: ChatModel | None = None) -> Any:
     if FastAPI is None:
         raise RuntimeError("fastapi and pydantic are required to create the API app")
@@ -161,5 +172,9 @@ def create_app(*, model: ChatModel | None = None) -> Any:
             )
             for item in monitoring.list_monitors()
         ]
+
+    @app.get('/monitor-runs', response_model=list[MonitorRunResponse])
+    def list_monitor_runs() -> list[MonitorRunResponse]:
+        return [MonitorRunResponse(**item) for item in monitoring.list_monitor_runs()]
 
     return app

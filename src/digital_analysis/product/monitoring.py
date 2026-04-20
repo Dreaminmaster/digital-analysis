@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from ..orchestrator import DigitalAnalysisOrchestrator, OrchestratorResult
 from .models import AnalysisSession, TopicMonitor, WatchlistItem
 from .store import InMemoryStore
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class MonitoringService:
@@ -32,6 +37,20 @@ class MonitoringService:
     def list_monitors(self) -> list[TopicMonitor]:
         return self.store.list_monitors()
 
+    def list_monitor_runs(self) -> list[dict[str, object]]:
+        return self.store.list_monitor_runs()
+
     def run_monitor(self, monitor_id: str) -> OrchestratorResult:
         monitor = next(item for item in self.store.list_monitors() if item.monitor_id == monitor_id)
-        return self.run_analysis(monitor.query)
+        result = self.run_analysis(monitor.query)
+        self.store.save_monitor_run({
+            "run_id": str(uuid.uuid4()),
+            "monitor_id": monitor.monitor_id,
+            "topic": monitor.topic,
+            "query": monitor.query,
+            "ran_at": _now_iso(),
+            "task_type": result.task.task_type.value,
+            "confidence": result.analysis.confidence,
+            "summary": result.analysis.summary,
+        })
+        return result
