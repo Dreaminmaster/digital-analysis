@@ -6,13 +6,19 @@ from .schema import AnswerEvidence, OneShotAnswer
 
 class OneShotAnswerBuilder:
     def build(self, analysis: AnalysisOutput) -> OneShotAnswer:
+        # Pick highest-confidence evidence first, then keep top N.
+        ranked_items = sorted(
+            analysis.evidence.items,
+            key=lambda item: (item.confidence_hint if item.confidence_hint is not None else 0.0),
+            reverse=True,
+        )
         evidence_items = tuple(
             AnswerEvidence(
                 label=item.label,
                 summary=item.summary,
                 value_text=item.value_text,
             )
-            for item in analysis.evidence.items[:6]
+            for item in ranked_items[:6]
         )
 
         if analysis.contradictions:

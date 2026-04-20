@@ -9,6 +9,7 @@ class TaskClassifier:
 
         task_type = TaskType.GENERAL
         horizon = TimeHorizon.UNKNOWN
+        target_asset: str | None = None
 
         if any(word in q for word in ("war", "conflict", "invasion", "taiwan", "ww3", "geopolit")):
             task_type = TaskType.GEOPOLITICAL
@@ -28,4 +29,20 @@ class TaskClassifier:
         elif any(word in q for word in ("3 years", "5 years", "long term", "decade")):
             horizon = TimeHorizon.LONG
 
-        return TaskSpec(question=question, task_type=task_type, horizon=horizon)
+        # Lightweight target-asset extraction for one-shot Q&A routing.
+        if "gold" in q:
+            target_asset = "GLD"
+        elif "bitcoin" in q or "btc" in q:
+            target_asset = "BTC-USD"
+        elif "ethereum" in q or "eth" in q:
+            target_asset = "ETH-USD"
+        elif "nvda" in q or "nvidia" in q:
+            target_asset = "NVDA"
+        elif "spy" in q:
+            target_asset = "SPY"
+        elif "qqq" in q:
+            target_asset = "QQQ"
+        elif "tesla" in q or "tsla" in q:
+            target_asset = "TSLA"
+
+        return TaskSpec(question=question, task_type=task_type, horizon=horizon, target_asset=target_asset)
