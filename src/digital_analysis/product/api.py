@@ -4,6 +4,7 @@ from typing import Any
 
 from ..models.base import ChatModel
 from ..orchestrator import DigitalAnalysisOrchestrator
+from ..product.monitoring import MonitoringService
 from ..product.service import AnalysisService
 from ..reports.builder import ReportSynthesizer
 
@@ -51,12 +52,41 @@ class HealthResponse(BaseModel):  # type: ignore[misc,valid-type]
     service: str
 
 
+class WatchlistCreateRequest(BaseModel):  # type: ignore[misc,valid-type]
+    name: str
+    query: str
+    tags: list[str] = []
+
+
+class WatchlistItemResponse(BaseModel):  # type: ignore[misc,valid-type]
+    item_id: str
+    name: str
+    query: str
+    tags: list[str]
+
+
+class MonitorCreateRequest(BaseModel):  # type: ignore[misc,valid-type]
+    topic: str
+    query: str
+    schedule_hint: str = "manual"
+
+
+class MonitorResponse(BaseModel):  # type: ignore[misc,valid-type]
+    monitor_id: str
+    topic: str
+    query: str
+    schedule_hint: str
+    active: bool
+
+
 def create_app(*, model: ChatModel | None = None) -> Any:
     if FastAPI is None:
         raise RuntimeError("fastapi and pydantic are required to create the API app")
 
     synthesizer = ReportSynthesizer(model=model) if model is not None else None
-    service = AnalysisService(orchestrator=DigitalAnalysisOrchestrator(synthesizer=synthesizer))
+    orchestrator = DigitalAnalysisOrchestrator(synthesizer=synthesizer)
+    service = AnalysisService(orchestrator=orchestrator)
+    monitoring = MonitoringService(orchestrator=orchestrator)
     app = FastAPI(title="Digital Analysis API", version="0.1.0")
 
     @app.get("/health", response_model=HealthResponse)
@@ -95,5 +125,41 @@ def create_app(*, model: ChatModel | None = None) -> Any:
             metadata=result.analysis.metadata,
             synthesized_text=synthesized_text,
         )
+
+    @app.post('/watchlist', response_model=WatchlistItemResponse)
+    def create_watchlist_item(req: WatchlistCreateRequest) -> WatchlistItemResponse:
+        item = monitoring.create_watchlist_item(name=req.name, query=req.query, tags=tuple(req.tags))
+        return WatchlistItemResponse(item_id=item.item_id, name=item.name, query=item.query, tags=list(item.tags))
+
+    @app.get('/watchlist', response_model=list[WatchlistItemResponse])
+    def list_watchlist_items() -> list[WatchlistItemResponse]:
+        return [
+            WatchlistItemResponse(item_id=item.item_id, name=item.name, query=item.query, tags=list(item.tags))
+            for item in monitoring.list_watchlist_items()
+        ]
+
+    @app.post('/monitors', response_model=MonitorResponse)
+    def create_monitor(req: MonitorCreateRequest) -> MonitorResponse:
+        monitor = monitoring.create_monitor(topic=req.topic, query=req.query, schedule_hint=req.schedule_hint)
+        return MonitorResponse(
+            monitor_id=monitor.monitor_id,
+            topic=monitor.topic,
+            query=monitor.query,
+            schedule_hint=monitor.schedule_hint,
+            active=monitor.active,
+        )
+
+    @app.get('/monitors', response_model=list[MonitorResponse])
+    def list_monitors() -> list[MonitorResponse]:
+        return [
+            MonitorResponse(
+                monitor_id=item.monitor_id,
+                topic=item.topic,
+                query=item.query,
+                schedule_hint=item.schedule_hint,
+                active=item.active,
+            )
+            for item in monitoring.list_monitors()
+        ]
 
     return app
