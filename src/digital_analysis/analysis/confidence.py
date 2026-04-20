@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from ..contracts.evidence import EvidenceBundle
+
 
 class ConfidenceEngine:
-    """Very simple baseline confidence model.
-
-    Future versions should calibrate on source quality, contradiction severity,
-    horizon coverage, freshness, and evidence sufficiency.
-    """
+    """Baseline confidence model with evidence-aware adjustment."""
 
     def score(
         self,
@@ -19,4 +17,12 @@ class ConfidenceEngine:
         score += min(evidence_count, 6) * 0.08
         score -= contradiction_count * 0.07
         score -= missing_coverage_count * 0.05
+        return max(0.0, min(score, 0.95))
+
+    def adjust_with_evidence(self, base_confidence: float, evidence: EvidenceBundle) -> float:
+        score = base_confidence
+        hinted = [item.confidence_hint for item in evidence.items if item.confidence_hint is not None]
+        if hinted:
+            avg = sum(hinted) / len(hinted)
+            score = (score * 0.6) + (avg * 0.4)
         return max(0.0, min(score, 0.95))

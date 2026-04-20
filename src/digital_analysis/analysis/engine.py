@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from ..contracts.evidence import EvidenceBundle, EvidenceItem, EvidenceKind, SourceProvenance
 from ..contracts.tasks import TaskSpec
@@ -9,6 +9,8 @@ from .confidence import ConfidenceEngine
 from .contradiction import ContradictionEngine
 from .horizons import HorizonGroupingEngine
 from .scenarios import ScenarioComposer
+from .scorer import EvidenceScoringEngine
+from .summary import SummaryRegenerator
 
 
 @dataclass(frozen=True)
@@ -25,17 +27,15 @@ class AnalysisOutput:
 
 
 class AnalysisEngine:
-    """Baseline autonomous analysis engine.
-
-    Upgraded to emit structured evidence so future synthesis/reporting can rely
-    on contracts instead of only free-form summary text.
-    """
+    """Baseline autonomous analysis engine with evidence-aware reanalysis."""
 
     def __init__(self) -> None:
         self._contradictions = ContradictionEngine()
         self._horizons = HorizonGroupingEngine()
         self._confidence = ConfidenceEngine()
         self._scenarios = ScenarioComposer()
+        self._scorer = EvidenceScoringEngine()
+        self._summary = SummaryRegenerator()
 
     def analyze(self, task: TaskSpec, plan: SignalPlan) -> AnalysisOutput:
         signal_notes = tuple(req.category.replace("_", " ") for req in plan.required_signals)
@@ -93,4 +93,31 @@ class AnalysisEngine:
                     "unknown": horizon_bucket.unknown,
                 }
             },
+        )
+
+    def reanalyze_with_evidence(self, analysis: AnalysisOutput, evidence: EvidenceBundle) -> AnalysisOutput:
+        score = self._scorer.score(evidence)
+        contradiction_findings = self._contradictions.detect_from_evidence(evidence)
+        confidence = self._confidence.adjust_with_evidence(analysis.confidence, evidence)
+        confidence = max(0.0, min(confidence - (0.04 * len(contradiction_findings)), 0.95))
+        summary = self._summary.regenerate(
+            task_type=analysis.task.task_type.value,
+            evidence=evidence,
+            score=score,
+        )
+        metadata = dict(analysis.metadata)
+        metadata["evidence_score"] = {
+            "item_count": score.item_count,
+            "positive": score.positive_count,
+            "negative": score.negative_count,
+            "neutral": score.neutral_count,
+            "average_confidence_hint": score.average_confidence_hint,
+        }
+        return replace(
+            analysis,
+            summary=summary,
+            confidence=confidence,
+            evidence=evidence,
+            contradictions=tuple(f.explanation for f in contradiction_findings),
+            metadata=metadata,
         )
