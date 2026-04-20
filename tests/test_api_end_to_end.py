@@ -19,6 +19,12 @@ class ApiEndToEndTests(unittest.TestCase):
         data = resp.json()
         self.assertEqual(data['task_type'], 'macro')
         self.assertIn('markdown_report', data)
+        self.assertIn('suggested_symbols', data)
+        self.assertIn('suggested_providers', data)
+        self.assertIn('evidence', data)
+        self.assertIn('contradictions', data)
+        self.assertIn('scenarios', data)
+        self.assertIn('metadata', data)
 
 
 if __name__ == '__main__':

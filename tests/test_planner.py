@@ -1,7 +1,8 @@
 import unittest
 
-from digital_analysis.contracts.tasks import TaskType
+from digital_analysis.contracts.tasks import TaskSpec, TaskType, TimeHorizon
 from digital_analysis.planner.classifier import TaskClassifier
+from digital_analysis.planner.planner import SimplePlanner
 from digital_analysis.planner.priceability import PriceabilityChecker
 
 
@@ -19,6 +20,17 @@ class PlannerTests(unittest.TestCase):
         assessment = PriceabilityChecker().assess(task)
         self.assertTrue(assessment.priceable)
         self.assertTrue(assessment.proxy_markets_likely)
+
+    def test_planner_suggests_macro_symbols(self) -> None:
+        task = TaskSpec(question="Will there be a recession next year?", task_type=TaskType.MACRO, horizon=TimeHorizon.MEDIUM)
+        plan = SimplePlanner().plan(task)
+        self.assertIn("SPY", plan.suggested_symbols)
+        self.assertIn("us_treasury", plan.suggested_providers)
+
+    def test_planner_suggests_gold_symbols(self) -> None:
+        task = TaskSpec(question="Is gold attractive now?", task_type=TaskType.ASSET, horizon=TimeHorizon.MEDIUM)
+        plan = SimplePlanner().plan(task)
+        self.assertIn("GLD", plan.suggested_symbols)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,15 @@ class AnalyzeRequest(BaseModel):  # type: ignore[misc,valid-type]
     synthesize: bool = False
 
 
+class EvidenceResponse(BaseModel):  # type: ignore[misc,valid-type]
+    label: str
+    summary: str
+    value_text: str | None = None
+    direction: str | None = None
+    horizon: str | None = None
+    confidence_hint: float | None = None
+
+
 class AnalyzeResponse(BaseModel):  # type: ignore[misc,valid-type]
     task_type: str
     horizon: str
@@ -28,6 +37,12 @@ class AnalyzeResponse(BaseModel):  # type: ignore[misc,valid-type]
     summary: str
     confidence: float
     markdown_report: str
+    suggested_symbols: list[str]
+    suggested_providers: list[str]
+    evidence: list[EvidenceResponse]
+    contradictions: list[str]
+    scenarios: list[str]
+    metadata: dict[str, Any]
     synthesized_text: str | None = None
 
 
@@ -54,6 +69,17 @@ def create_app(*, model: ChatModel | None = None) -> Any:
             raise HTTPException(status_code=400, detail="question must not be empty")
         result = service.analyze(req.question)
         synthesized_text = result.synthesized_text if req.synthesize else None
+        evidence = [
+            EvidenceResponse(
+                label=item.label,
+                summary=item.summary,
+                value_text=item.value_text,
+                direction=item.direction,
+                horizon=item.horizon,
+                confidence_hint=item.confidence_hint,
+            )
+            for item in result.analysis.evidence.items
+        ]
         return AnalyzeResponse(
             task_type=result.task.task_type.value,
             horizon=result.task.horizon.value,
@@ -61,6 +87,12 @@ def create_app(*, model: ChatModel | None = None) -> Any:
             summary=result.analysis.summary,
             confidence=result.analysis.confidence,
             markdown_report=result.markdown_report,
+            suggested_symbols=list(result.analysis.plan.suggested_symbols),
+            suggested_providers=list(result.analysis.plan.suggested_providers),
+            evidence=evidence,
+            contradictions=list(result.analysis.contradictions),
+            scenarios=list(result.analysis.scenarios),
+            metadata=result.analysis.metadata,
             synthesized_text=synthesized_text,
         )
 
